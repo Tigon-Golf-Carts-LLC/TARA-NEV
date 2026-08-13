@@ -12,4 +12,7 @@ description: Non-obvious layout/DOM behaviors of the cloned static site that bre
 - The theme's interactive JS never came over in the clone: fl-accordion had markup+CSS but no toggle script until we added a delegated document-level handler (keyboard-accessible: role/tabindex/aria-expanded enhancement via MutationObserver) at the end of jquery.min_index.js.
   **Why:** accordions looked fine but silently did nothing on every page (FAQ included); pointer-only handlers also fail code review for WCAG.
   **How to apply:** when adding widgets that reuse theme classes, test the click AND keyboard interaction — never assume the original site's JS exists in the clone. Content is React-injected, so handlers must be document-delegated.
+- The theme's JS-built mobile header (`.mobile-head-items`) is unreliable in the SPA (DOM built then lost on re-injection, icon-font glyphs missing). It's hidden via CSS and replaced by a custom `#tara-mobile-nav` (hamburger fixed top-right, drawer slides in from the right) appended at the end of jquery.min_index.js.
+  **Why:** users saw an empty box for the menu icon and no working drawer on mobile.
+  **How to apply:** mobile nav changes go to the `#tara-mobile-nav` builder + its site.css block, not the legacy theme mobile code.
 - Balanced-tag removal scripts must match the real tag (flags are `<li>`, accordion is `<div>`); FAQ/recall/tech-support pages use the same `fl-module-accordion` markup as product specs — exclude non-product pages from spec-accordion removals.

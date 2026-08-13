@@ -545,3 +545,50 @@
 /* Contact callout circles: center the inline SVG icons */
 .fl-callout .fl-icon { display: inline-flex; align-items: center; justify-content: center; }
 .fl-callout .fl-icon svg { display: block; }
+
+/* ── TARA mobile menu ──────────────────────────────────── */
+.mobile-head-items { display: none !important; } /* legacy theme mobile bar */
+#tara-mobile-nav { display: none; }
+@media (max-width: 950px) {
+  #tara-mobile-nav { display: block; }
+  #tara-mobile-nav .tmn-toggle {
+    position: fixed; top: 12px; right: 14px; z-index: 100000;
+    width: 44px; height: 44px; border: none; border-radius: 8px;
+    background: rgba(0,0,0,0.65); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  }
+  #tara-mobile-nav .tmn-toggle span {
+    display: block; width: 22px; height: 2px; background: #fff; border-radius: 2px;
+    transition: transform .25s ease, opacity .2s ease;
+  }
+  #tara-mobile-nav.tmn-open .tmn-toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  #tara-mobile-nav.tmn-open .tmn-toggle span:nth-child(2) { opacity: 0; }
+  #tara-mobile-nav.tmn-open .tmn-toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  #tara-mobile-nav .tmn-mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99998;
+    opacity: 0; pointer-events: none; transition: opacity .3s ease;
+  }
+  #tara-mobile-nav.tmn-open .tmn-mask { opacity: 1; pointer-events: auto; }
+  #tara-mobile-nav .tmn-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 78%; max-width: 340px;
+    background: #fff; z-index: 99999; overflow-y: auto;
+    transform: translateX(100%); transition: transform .3s ease-in-out;
+    box-shadow: -6px 0 24px rgba(0,0,0,0.25); padding: 56px 0 24px;
+  }
+  #tara-mobile-nav.tmn-open .tmn-drawer { transform: translateX(0); }
+  #tara-mobile-nav .tmn-close {
+    position: absolute; top: 8px; right: 10px; width: 40px; height: 40px;
+    border: none; background: none; font-size: 28px; line-height: 1; color: #333; cursor: pointer;
+  }
+  #tara-mobile-nav .tmn-links > a {
+    display: block; padding: 13px 22px; color: #111; font-size: 16px; font-weight: 600;
+    text-decoration: none; border-bottom: 1px solid #eee; text-transform: uppercase; letter-spacing: .5px;
+  }
+  #tara-mobile-nav .tmn-sub a {
+    display: block; padding: 9px 22px 9px 36px; color: #555; font-size: 14px;
+    text-decoration: none; border-bottom: 1px solid #f4f4f4;
+  }
+  /* Mobile header: logo sized and left-aligned, clear of the fixed toggle */
+  .head-layer .layout { justify-content: flex-start !important; padding: 0 64px 0 16px !important; }
+  .logo img { max-height: 40px !important; width: auto !important; }
+}

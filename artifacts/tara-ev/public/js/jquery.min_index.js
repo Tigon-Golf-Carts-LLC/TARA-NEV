@@ -636,3 +636,82 @@ if ('requestIdleCallback' in window) {
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
+
+/* ── TARA mobile menu (replaces the flaky theme mobile builder) ──
+   Hamburger fixed at top-right on <=950px; drawer slides in from the right. */
+(function () {
+  function buildTaraMobileNav() {
+    if (window.innerWidth > 950) return;
+    var old = document.getElementById('tara-mobile-nav');
+    if (old) old.remove();
+
+    var srcNav = document.querySelector('.nav-wrap .head-nav');
+    if (!srcNav) return;
+
+    var wrap = document.createElement('div');
+    wrap.id = 'tara-mobile-nav';
+    wrap.innerHTML =
+      '<button type="button" class="tmn-toggle" aria-label="Open menu" aria-expanded="false">' +
+      '<span></span><span></span><span></span></button>' +
+      '<div class="tmn-mask"></div>' +
+      '<nav class="tmn-drawer" aria-label="Mobile navigation">' +
+      '<button type="button" class="tmn-close" aria-label="Close menu">&times;</button>' +
+      '<div class="tmn-links"></div></nav>';
+    document.body.appendChild(wrap);
+
+    var links = wrap.querySelector('.tmn-links');
+    srcNav.querySelectorAll(':scope > li > a').forEach(function (a) {
+      var em = a.querySelector('em');
+      var text = (em ? em.textContent : a.textContent).trim();
+      if (!text) return;
+      var na = document.createElement('a');
+      na.href = a.getAttribute('href') || '#';
+      na.textContent = text;
+      links.appendChild(na);
+      var li = a.closest('li');
+      var subLinks = li ? li.querySelectorAll('.hide_box a, .sub-menu a') : [];
+      if (subLinks.length) {
+        var sub = document.createElement('div');
+        sub.className = 'tmn-sub';
+        var seen = {};
+        subLinks.forEach(function (sa) {
+          var sEm = sa.querySelector('em');
+          var sText = (sEm ? sEm.textContent : sa.textContent).trim();
+          var href = sa.getAttribute('href') || '';
+          if (!sText || !href || seen[href]) return;
+          seen[href] = 1;
+          var nsa = document.createElement('a');
+          nsa.href = href;
+          nsa.textContent = sText;
+          sub.appendChild(nsa);
+        });
+        if (sub.children.length) links.appendChild(sub);
+      }
+    });
+
+    var toggle = wrap.querySelector('.tmn-toggle');
+    function setOpen(open) {
+      wrap.classList.toggle('tmn-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      document.body.style.overflow = open ? 'hidden' : '';
+    }
+    toggle.addEventListener('click', function () {
+      setOpen(!wrap.classList.contains('tmn-open'));
+    });
+    wrap.querySelector('.tmn-mask').addEventListener('click', function () { setOpen(false); });
+    wrap.querySelector('.tmn-close').addEventListener('click', function () { setOpen(false); });
+    links.addEventListener('click', function (e) {
+      if (e.target.closest('a')) setOpen(false);
+    });
+  }
+  buildTaraMobileNav();
+  window.addEventListener('resize', function () {
+    if (window.innerWidth > 950) {
+      var el = document.getElementById('tara-mobile-nav');
+      if (el) el.remove();
+      document.body.style.overflow = '';
+    } else if (!document.getElementById('tara-mobile-nav')) {
+      buildTaraMobileNav();
+    }
+  });
+})();
