@@ -588,7 +588,17 @@
     display: block; padding: 9px 22px 9px 36px; color: #555; font-size: 14px;
     text-decoration: none; border-bottom: 1px solid #f4f4f4;
   }
-  /* Mobile header: logo sized and left-aligned, clear of the fixed toggle */
-  .head-layer .layout { justify-content: flex-start !important; padding: 0 64px 0 16px !important; }
-  .logo img { max-height: 40px !important; width: auto !important; }
+  /* Mobile header: logo left-aligned and vertically centered, clear of the fixed toggle */
+  .head-layer { display: flex !important; align-items: center !important; height: 64px !important; min-height: 0 !important; max-height: 64px !important; padding: 0 !important; overflow: visible; }
+  #web-head, .web-head { height: auto !important; min-height: 0 !important; padding: 0 !important; }
+  .head-layer * { line-height: normal; }
+  .head-layer .layout {
+    display: flex !important; align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100%; min-height: 64px !important;
+    padding: 0 64px 0 16px !important; margin: 0 !important;
+  }
+  .logo { display: flex !important; align-items: center !important; margin: 0 !important; padding: 0 !important; float: none !important; }
+  .logo a { display: flex !important; align-items: center !important; }
+  .logo img { max-height: 40px !important; width: auto !important; display: block; }
 }
