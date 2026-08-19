@@ -3,7 +3,13 @@ import { injectStructuredData } from './structuredData';
 
 const BASE = import.meta.env.BASE_URL; // e.g. "/"
 
-type RouteMeta = { file: string; title: string; description?: string; bodyClass: string; redirect?: never };
+type RouteMeta = {
+  file: string;
+  title: string;
+  description?: string;
+  bodyClass: string;
+  redirect?: never;
+};
 
 type RouteRedirect = { redirect: string };
 type Routes = Record<string, RouteEntry>;
@@ -37,6 +43,34 @@ function lookupRoute(routes: Routes, path: string): RouteEntry | null {
   return null;
 }
 
+const SITE_ORIGIN = 'https://taranev.com';
+const HOME_TITLE = 'TARA Neighborhood Electric Vehicles';
+const HOME_DESCRIPTION =
+  'lithium-powered neighborhood electric vehicles designed for neighborhoods, golf courses, resorts, and communities.';
+const SITE_ICON = '/images/tara-nev-logo.png';
+
+function extractMetaImage(contentHtml: string, path: string): string {
+  if (path === '/') return SITE_ICON;
+
+  // Ignore the shared header/mega-menu so a page never inherits one of the
+  // navigation's vehicle thumbnails as its social image.
+  const pageContent = contentHtml.split(/<\/header>/i)[1] || contentHtml;
+  const skip = /logo|favicon|menu-image|icon/i;
+  for (const match of pageContent.matchAll(
+    /src=["']([^"']+\.(?:webp|jpg|jpeg|png))["']/gi,
+  )) {
+    const src = match[1];
+    if (skip.test(src)) continue;
+    if (src.startsWith('/images/') || src.startsWith('/uploads/')) return src;
+  }
+  return SITE_ICON;
+}
+
+function setMetaContent(selector: string, content: string) {
+  const element = document.querySelector<HTMLMetaElement>(selector);
+  if (element) element.setAttribute('content', content);
+}
+
 /** Wire the product color list to the vehicle image slides (one image per color). */
 function initProductColorPicker(root: HTMLElement) {
   const slides = root.querySelectorAll<HTMLElement>('.pro_img .swiper-slide');
@@ -59,11 +93,14 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
 
     async function load() {
       const path = normalizePath(window.location.pathname);
       try {
-        const routesRes = await fetch(`${BASE}content/routes.json`);
+        const routesRes = await fetch(`${BASE}content/routes.json`, {
+          signal: controller.signal,
+        });
         const routes: Routes = await routesRes.json();
         const entry = lookupRoute(routes, path);
         if (!entry) {
@@ -81,6 +118,7 @@ export default function App() {
         const meta: RouteMeta = entry;
         const res = await fetch(
           `${BASE}content/${encodeURIComponent(meta.file)}`,
+          { signal: controller.signal },
         );
         if (!res.ok) {
           if (!cancelled) setStatus('notfound');
@@ -89,12 +127,19 @@ export default function App() {
         const html = await res.text();
         if (cancelled || !containerRef.current) return;
 
-        document.title = meta.title;
-        injectStructuredData(path, meta.title);
+        const pageTitle = path === '/' ? HOME_TITLE : meta.title;
+        const pageDescription =
+          path === '/' ? HOME_DESCRIPTION : meta.description || HOME_DESCRIPTION;
+        const imagePath = extractMetaImage(html, path);
+        const absoluteImage = imagePath.startsWith('http')
+          ? imagePath
+          : `${SITE_ORIGIN}${imagePath}`;
+
+        document.title = pageTitle;
+        injectStructuredData(path, pageTitle);
 
         // Update per-route meta: canonical, description, OG, Twitter Card.
-        const siteOrigin = 'https://taragolfcart.com';
-        const canonicalUrl = `${siteOrigin}${path}`;
+        const canonicalUrl = `${SITE_ORIGIN}${path}`;
 
         // Canonical link tag
         let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
@@ -106,24 +151,19 @@ export default function App() {
         canonical.setAttribute('href', canonicalUrl);
 
         // Meta description
-        if (meta.description) {
-          const descEl = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-          if (descEl) descEl.setAttribute('content', meta.description);
-        }
+        setMetaContent('meta[name="description"]', pageDescription);
+        setMetaContent('meta[name="image"]', absoluteImage);
 
         // Open Graph: og:title, og:description, og:url
-        const ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]');
-        if (ogTitle) ogTitle.setAttribute('content', meta.title);
-        const ogDesc = document.querySelector<HTMLMetaElement>('meta[property="og:description"]');
-        if (ogDesc && meta.description) ogDesc.setAttribute('content', meta.description);
-        const ogUrl = document.querySelector<HTMLMetaElement>('meta[property="og:url"]');
-        if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);
+        setMetaContent('meta[property="og:title"]', pageTitle);
+        setMetaContent('meta[property="og:description"]', pageDescription);
+        setMetaContent('meta[property="og:image"]', absoluteImage);
+        setMetaContent('meta[property="og:url"]', canonicalUrl);
 
         // Twitter Card: twitter:title, twitter:description
-        const twTitle = document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]');
-        if (twTitle) twTitle.setAttribute('content', meta.title);
-        const twDesc = document.querySelector<HTMLMetaElement>('meta[name="twitter:description"]');
-        if (twDesc && meta.description) twDesc.setAttribute('content', meta.description);
+        setMetaContent('meta[name="twitter:title"]', pageTitle);
+        setMetaContent('meta[name="twitter:description"]', pageDescription);
+        setMetaContent('meta[name="twitter:image"]', absoluteImage);
 
         if (meta.bodyClass) document.body.className = meta.bodyClass;
         containerRef.current.innerHTML = html;
@@ -250,6 +290,13 @@ export default function App() {
         initProductColorPicker(containerRef.current);
 
       } catch (err) {
+        if (
+          cancelled ||
+          controller.signal.aborted ||
+          (err instanceof DOMException && err.name === 'AbortError')
+        ) {
+          return;
+        }
         console.error(err);
         if (!cancelled) setStatus('notfound');
       }
@@ -258,6 +305,7 @@ export default function App() {
     load();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, []);
 

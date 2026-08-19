@@ -6,8 +6,8 @@
  * navigation; the helper `injectStructuredData` handles the DOM write.
  */
 
-const SITE_URL = 'https://www.taragolfcart.com';
-const SITE_NAME = 'TARA Electric Vehicles';
+const SITE_URL = 'https://taranev.com';
+const SITE_NAME = 'TARA Neighborhood Electric Vehicles';
 const LOGO_URL = `${SITE_URL}/images/tara-nev-logo.png`;
 const PHONE = '+1-844-844-3432';
 

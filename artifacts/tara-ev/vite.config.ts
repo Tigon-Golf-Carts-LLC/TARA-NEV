@@ -43,17 +43,19 @@ const DEV_REDIRECTS: Record<string, string> = {
   '/mainitenance-support/': '/maintenance-support/',
   '/techncal-support/': '/technical-support/',
 };
-const publishedDomain = process.env.REPLIT_DOMAINS?.split(',')[0]?.trim();
+const SEO_ORIGIN = 'https://taranev.com';
+const HOME_TITLE = 'TARA Neighborhood Electric Vehicles';
+const HOME_DESCRIPTION =
+  'lithium-powered neighborhood electric vehicles designed for neighborhoods, golf courses, resorts, and communities.';
+const SITE_ICON = '/images/tara-nev-logo.png';
 
 const absoluteOgUrls = () => ({
   name: 'absolute-og-urls',
   apply: 'build' as const,
   transformIndexHtml(html: string) {
-    if (!publishedDomain) return html;
-    const origin = `https://${publishedDomain}`;
     return html.replace(
-      /(<meta\s+property="og:(?:image|url)"\s+content=")(\/[^"]*)(")/g,
-      (_m, pre, path, post) => `${pre}${origin}${path}${post}`,
+      /(<meta\s+(?:property="og:(?:image|url)"|name="(?:image|twitter:image)")\s+content=")(\/[^"]*)(")/g,
+      (_m, pre, path, post) => `${pre}${SEO_ORIGIN}${path}${post}`,
     );
   },
 });
@@ -83,36 +85,47 @@ function extractDescription(html: string): string {
 }
 
 function extractOgImage(html: string): string {
+  // Ignore the shared header/mega-menu so metadata uses the page's own image.
+  const pageContent = html.split(/<\/header>/i)[1] || html;
   const SKIP = /logo|favicon|menu-image|icon/i;
-  for (const m of html.matchAll(/src=["']([^"']+\.(?:webp|jpg|jpeg|png))["']/gi)) {
+  for (const m of pageContent.matchAll(/src=["']([^"']+\.(?:webp|jpg|jpeg|png))["']/gi)) {
     const src = m[1];
     if (SKIP.test(src)) continue;
     if (src.startsWith('/images/') || src.startsWith('/uploads/')) return src;
   }
-  return '/images/og-image.png';
+  return SITE_ICON;
 }
 
 function injectRouteMeta(
   shellHtml: string,
   routePath: string,
   routeTitle: string,
+  routeDescription: string | undefined,
   contentHtml: string,
   origin: string,
 ): string {
-  const description = extractDescription(contentHtml);
-  const ogImage = extractOgImage(contentHtml);
+  const title = routePath === '/' ? HOME_TITLE : routeTitle || HOME_TITLE;
+  const description =
+    routePath === '/'
+      ? HOME_DESCRIPTION
+      : routeDescription || extractDescription(contentHtml);
+  const ogImage = routePath === '/' ? SITE_ICON : extractOgImage(contentHtml);
   const canonicalUrl = `${origin}${routePath}`;
   const absoluteOgImage = ogImage.startsWith('http') ? ogImage : `${origin}${ogImage}`;
 
   let html = shellHtml;
-  html = html.replace(/<title>[^<]*<\/title>/, `<title>${escHtml(routeTitle)}</title>`);
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${escHtml(title)}</title>`);
   html = html.replace(
     /<meta\s+name="description"[^>]*\/?>/i,
     `<meta name="description" content="${escHtml(description)}" />`,
   );
   html = html.replace(
+    /<meta\s+name="image"[^>]*\/?>/i,
+    `<meta name="image" content="${absoluteOgImage}" />`,
+  );
+  html = html.replace(
     /<meta\s+property="og:title"[^>]*\/?>/i,
-    `<meta property="og:title" content="${escHtml(routeTitle)}" />`,
+    `<meta property="og:title" content="${escHtml(title)}" />`,
   );
   html = html.replace(
     /<meta\s+property="og:description"[^>]*\/?>/i,
@@ -122,11 +135,26 @@ function injectRouteMeta(
     /<meta\s+property="og:image"[^>]*\/?>/i,
     `<meta property="og:image" content="${absoluteOgImage}" />`,
   );
-  const canonicalBlock = [
-    `  <link rel="canonical" href="${canonicalUrl}" />`,
-    `  <meta property="og:url" content="${canonicalUrl}" />`,
-  ].join('\n');
-  html = html.replace('</head>', `${canonicalBlock}\n</head>`);
+  html = html.replace(
+    /<link\s+rel="canonical"[^>]*\/?>/i,
+    `<link rel="canonical" href="${canonicalUrl}" />`,
+  );
+  html = html.replace(
+    /<meta\s+property="og:url"[^>]*\/?>/i,
+    `<meta property="og:url" content="${canonicalUrl}" />`,
+  );
+  html = html.replace(
+    /<meta\s+name="twitter:title"[^>]*\/?>/i,
+    `<meta name="twitter:title" content="${escHtml(title)}" />`,
+  );
+  html = html.replace(
+    /<meta\s+name="twitter:description"[^>]*\/?>/i,
+    `<meta name="twitter:description" content="${escHtml(description)}" />`,
+  );
+  html = html.replace(
+    /<meta\s+name="twitter:image"[^>]*\/?>/i,
+    `<meta name="twitter:image" content="${absoluteOgImage}" />`,
+  );
   // Embed page content for crawlers
   html = html.replace(
     '<div id="root"></div>',
@@ -137,7 +165,12 @@ function injectRouteMeta(
 
 // ─── Dev middleware: serves per-route pre-rendered HTML ───────────────────────
 
-type RouteMeta = { file: string; title: string; bodyClass: string };
+type RouteMeta = {
+  file: string;
+  title: string;
+  description?: string;
+  bodyClass: string;
+};
 type Routes = Record<string, RouteMeta>;
 
 const spaMetaMiddleware = (): Plugin => ({
@@ -189,16 +222,13 @@ const spaMetaMiddleware = (): Plugin => ({
         // Run Vite's own HTML transforms (so script tags are correct)
         shellHtml = await server.transformIndexHtml(reqPath, shellHtml);
 
-        const devOrigin = req.headers.host
-          ? `${req.headers['x-forwarded-proto'] ?? 'http'}://${req.headers.host}`
-          : 'http://localhost';
-
         const pageHtml = injectRouteMeta(
           shellHtml,
           reqPath,
           meta.title,
+          meta.description,
           contentHtml,
-          devOrigin,
+          SEO_ORIGIN,
         );
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -225,9 +255,7 @@ const prerenderPlugin = (): Plugin => ({
     // Use the *built* index.html as the shell so generated pages reference
     // Vite's hashed /assets/index-*.js bundles, not the TS source entry.
     const shellHtml = path.join(outDir, 'index.html');
-    const originArg = publishedDomain
-      ? `https://${publishedDomain}`
-      : 'https://taranev.com';
+    const originArg = SEO_ORIGIN;
     // Let execFileSync throw on non-zero exit — this propagates prerender
     // failures as a build error so broken output is never silently shipped.
     execFileSync(

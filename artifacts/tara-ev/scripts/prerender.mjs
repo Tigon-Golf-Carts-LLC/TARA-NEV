@@ -45,9 +45,12 @@ const outDir =
   getArg('--outDir') ?? path.join(artifactDir, 'dist', 'public');
 const origin =
   getArg('--origin') ??
-  (process.env.REPLIT_DOMAINS
-    ? `https://${process.env.REPLIT_DOMAINS.split(',')[0].trim()}`
-    : 'https://taranev.com');
+  'https://taranev.com';
+
+const HOME_TITLE = 'TARA Neighborhood Electric Vehicles';
+const HOME_DESCRIPTION =
+  'lithium-powered neighborhood electric vehicles designed for neighborhoods, golf courses, resorts, and communities.';
+const SITE_ICON = '/images/tara-nev-logo.png';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -110,21 +113,28 @@ function extractDescription(html) {
  * skipping logos, menu thumbnails, and icons.
  */
 function extractOgImage(html) {
+  // Ignore the shared header/mega-menu so metadata uses the page's own image.
+  const pageContent = html.split(/<\/header>/i)[1] || html;
   const SKIP = /logo|favicon|menu-image|icon/i;
-  for (const m of html.matchAll(/src=["']([^"']+\.(?:webp|jpg|jpeg|png))["']/gi)) {
+  for (const m of pageContent.matchAll(/src=["']([^"']+\.(?:webp|jpg|jpeg|png))["']/gi)) {
     const src = m[1];
     if (SKIP.test(src)) continue;
     if (src.startsWith('/images/') || src.startsWith('/uploads/')) return src;
   }
-  return '/images/og-image.png';
+  return SITE_ICON;
 }
 
 // ─── Per-route HTML builder ───────────────────────────────────────────────────
 
 function buildPageHtml(routePath, routeMeta, contentHtml) {
-  const title = routeMeta.title || 'TARA Neighborhood Electric Vehicles';
-  const description = extractDescription(contentHtml);
-  const ogImage = extractOgImage(contentHtml);
+  const title =
+    routePath === '/' ? HOME_TITLE : routeMeta.title || HOME_TITLE;
+  const description =
+    routePath === '/'
+      ? HOME_DESCRIPTION
+      : routeMeta.description || extractDescription(contentHtml);
+  const ogImage =
+    routePath === '/' ? SITE_ICON : extractOgImage(contentHtml);
   const canonicalUrl = `${origin}${routePath}`;
   const absoluteOgImage = ogImage.startsWith('http')
     ? ogImage
@@ -142,6 +152,12 @@ function buildPageHtml(routePath, routeMeta, contentHtml) {
   html = html.replace(
     /<meta\s+name="description"[^>]*\/?>/i,
     `<meta name="description" content="${escHtml(description)}" />`,
+  );
+
+  // Replace generic meta image
+  html = html.replace(
+    /<meta\s+name="image"[^>]*\/?>/i,
+    `<meta name="image" content="${absoluteOgImage}" />`,
   );
 
   // Replace generic og:title
@@ -162,12 +178,29 @@ function buildPageHtml(routePath, routeMeta, contentHtml) {
     `<meta property="og:image" content="${absoluteOgImage}" />`,
   );
 
-  // Inject canonical + og:url before </head>
-  const canonicalBlock = [
-    `  <link rel="canonical" href="${canonicalUrl}" />`,
-    `  <meta property="og:url" content="${canonicalUrl}" />`,
-  ].join('\n');
-  html = html.replace('</head>', `${canonicalBlock}\n</head>`);
+  // Replace canonical + og:url
+  html = html.replace(
+    /<link\s+rel="canonical"[^>]*\/?>/i,
+    `<link rel="canonical" href="${canonicalUrl}" />`,
+  );
+  html = html.replace(
+    /<meta\s+property="og:url"[^>]*\/?>/i,
+    `<meta property="og:url" content="${canonicalUrl}" />`,
+  );
+
+  // Replace Twitter Card metadata so it matches Open Graph on every page.
+  html = html.replace(
+    /<meta\s+name="twitter:title"[^>]*\/?>/i,
+    `<meta name="twitter:title" content="${escHtml(title)}" />`,
+  );
+  html = html.replace(
+    /<meta\s+name="twitter:description"[^>]*\/?>/i,
+    `<meta name="twitter:description" content="${escHtml(description)}" />`,
+  );
+  html = html.replace(
+    /<meta\s+name="twitter:image"[^>]*\/?>/i,
+    `<meta name="twitter:image" content="${absoluteOgImage}" />`,
+  );
 
   // Embed page content inside #root so crawlers that don't execute JS
   // still see the full page content, headings, product specs, and links.
@@ -179,6 +212,25 @@ function buildPageHtml(routePath, routeMeta, contentHtml) {
   );
 
   return html;
+}
+
+function assertPageMetadata(html, routePath) {
+  const required = [
+    /<title>[^<]+<\/title>/i,
+    /<meta\s+name="description"\s+content="[^"]+"/i,
+    /<meta\s+name="image"\s+content="https:\/\/[^"]+"/i,
+    /<meta\s+property="og:title"\s+content="[^"]+"/i,
+    /<meta\s+property="og:description"\s+content="[^"]+"/i,
+    /<meta\s+property="og:image"\s+content="https:\/\/[^"]+"/i,
+    /<meta\s+property="og:url"\s+content="https:\/\/[^"]+"/i,
+    /<meta\s+name="twitter:title"\s+content="[^"]+"/i,
+    /<meta\s+name="twitter:description"\s+content="[^"]+"/i,
+    /<meta\s+name="twitter:image"\s+content="https:\/\/[^"]+"/i,
+    /<link\s+rel="canonical"\s+href="https:\/\/[^"]+"/i,
+  ];
+  if (required.some((pattern) => !pattern.test(html))) {
+    throw new Error(`[prerender] Missing metadata for route "${routePath}"`);
+  }
 }
 
 // ─── Post-generation assertion ────────────────────────────────────────────────
@@ -253,6 +305,7 @@ async function main() {
 
     const contentHtml = fs.readFileSync(contentFile, 'utf8');
     const pageHtml = buildPageHtml(routePath, routeMeta, contentHtml);
+    assertPageMetadata(pageHtml, routePath);
 
     // Validate the generated page references an existing JS bundle.
     if (canAssert) {
