@@ -20,8 +20,8 @@ Marketing and product site for TARA electric golf carts and utility vehicles —
 - Neighborhood electric vehicles (NEV), utility vehicles
 
 ## Rendering mode
-- React + Vite SPA served via Replit static hosting
-- No SSR; all per-page metadata and content rendered client-side
+- React + Vite SPA, prerendered to static HTML and served from GitHub Pages
+- No SSR; `scripts/prerender.mjs` bakes per-page metadata and content into static HTML at build time, then React hydrates over it
 - Public static files under `artifacts/tara-ev/public/` are served directly
 
 ## Dismissed categories

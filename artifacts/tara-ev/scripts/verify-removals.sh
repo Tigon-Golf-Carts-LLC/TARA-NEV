@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fails if client-requested removals reappear anywhere in the site:
 # Mautic inquiry form scripts/markup, floating contact sidebar, WhatsApp
-# widget, web footer, or inquiry form section. See replit.md
+# widget, web footer, or inquiry form section. See README.md
 # "Client-requested removals". These have been restored accidentally by
 # past merges (e.g. offline localization) — this script guards against that.
 # Scans source files, and also the production build output (dist/public)

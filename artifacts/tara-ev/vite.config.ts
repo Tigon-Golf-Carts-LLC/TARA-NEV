@@ -2,48 +2,45 @@ import path from 'path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import type { Plugin, ViteDevServer } from 'vite';
 
-import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
-
-const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    'PORT environment variable is required but was not provided.',
-  );
-}
-
-const port = Number(rawPort);
+// Local dev/preview port. Override with PORT if 5173 is taken.
+const port = Number(process.env.PORT ?? 5173);
 
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  throw new Error(`Invalid PORT value: "${process.env.PORT}"`);
 }
 
-const basePath = process.env.BASE_PATH;
+// Served from a custom apex domain on GitHub Pages, so the site lives at "/".
+// Set BASE_PATH=/<repo-name>/ to publish to a github.io project-page URL
+// instead (see README).
+const basePath = process.env.BASE_PATH ?? '/';
 
-const DEV_REDIRECTS: Record<string, string> = {
-  // Percent-encoding case duplicate: lowercase hex → uppercase canonical.
-  // Matched against the raw request URL before any decoding.
-  '/news/a-complete-analysis-of-lsvs-what-are-low-speed-%e2%80%8b%e2%80%8bvehicles/':
-    '/news/a-complete-analysis-of-lsvs-what-are-low-speed-%E2%80%8B%E2%80%8Bvehicles/',
-  '/explorer-2-2-product/': '/explorer-2-2-golf-cart-product/',
-  '/horizon-4-product/': '/horizon-4-golf-cart-product/',
-  '/horizon-6-product/': '/horizon-6-golf-cart-product/',
-  '/lander-4-product/': '/lander-4-golf-cart-product/',
-  '/lander-6-product/': '/lander-6-golf-cart-product/',
-  '/spirit-plus-product/': '/spirit-plus-fleet-golf-cart-product/',
-  '/t3-2-2-product/': '/t3-2-2-golf-cart-product/',
-  '/t3-22-product/': '/t3-2-2-golf-cart-product/',
-  '/t3-2-2-lifted-product/': '/t3-2-2-lifted-golf-cart-product/',
-  '/t3-22-lifted-product/': '/t3-2-2-lifted-golf-cart-product/',
-  '/varranty-terms/': '/warranty-terms/',
-  '/mainitenance-support/': '/maintenance-support/',
-  '/techncal-support/': '/technical-support/',
-};
-const SEO_ORIGIN = 'https://taranev.com';
+// Alias/typo URLs that must 301 to their canonical page. `routes.json` is the
+// single source of truth: any entry shaped `{ "redirect": "/target/" }` is
+// honoured by the dev server here, by the client-side router in App.tsx, and
+// by the static redirect pages that scripts/pages-postbuild.mjs writes for
+// GitHub Pages (which has no server-side redirect support).
+function loadRedirects(): Record<string, string> {
+  const routesPath = path.resolve(
+    import.meta.dirname,
+    'public',
+    'content',
+    'routes.json',
+  );
+  const routes: Record<string, { redirect?: string }> = JSON.parse(
+    fs.readFileSync(routesPath, 'utf8'),
+  );
+  const map: Record<string, string> = {};
+  for (const [from, entry] of Object.entries(routes)) {
+    if (entry.redirect) map[from] = entry.redirect;
+  }
+  return map;
+}
+
+// Canonical origin used for canonical/OG URLs in the prerendered HTML.
+const SEO_ORIGIN = process.env.SITE_ORIGIN ?? 'https://taranev.com';
 const HOME_TITLE = 'TARA Neighborhood Electric Vehicles';
 const HOME_DESCRIPTION =
   'lithium-powered neighborhood electric vehicles designed for neighborhoods, golf courses, resorts, and communities.';
@@ -279,31 +276,10 @@ export default defineConfig({
     spaMetaMiddleware(),
     prerenderPlugin(),
     react(),
-    tailwindcss(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== 'production' &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import('@replit/vite-plugin-cartographer').then((m) =>
-            m.cartographer({
-              root: path.resolve(import.meta.dirname, '..'),
-            }),
-          ),
-          await import('@replit/vite-plugin-dev-banner').then((m) =>
-            m.devBanner(),
-          ),
-        ]
-      : []),
   ],
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'src'),
-      '@assets': path.resolve(
-        import.meta.dirname,
-        '..',
-        '..',
-        'attached_assets',
-      ),
     },
     dedupe: ['react', 'react-dom'],
   },
@@ -315,16 +291,12 @@ export default defineConfig({
   server: {
     port,
     strictPort: true,
-    host: '0.0.0.0',
-    allowedHosts: true,
     fs: {
       strict: true,
     },
   },
   preview: {
     port,
-    host: '0.0.0.0',
-    allowedHosts: true,
   },
 });
 
@@ -343,7 +315,7 @@ function redirectPlugin() {
         !stripped.includes('.') && !stripped.endsWith('/')
           ? stripped + '/'
           : stripped;
-      const target = DEV_REDIRECTS[normalized];
+      const target = loadRedirects()[normalized];
       if (target) {
         res.writeHead(301, { Location: target });
         res.end();
