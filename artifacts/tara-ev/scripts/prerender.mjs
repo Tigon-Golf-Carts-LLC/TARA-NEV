@@ -282,6 +282,11 @@ async function main() {
   const assetsDir = path.join(outDir, 'assets');
   const canAssert = fs.existsSync(assetsDir);
 
+  // Stash the untouched shell (empty #root, hashed asset tags) before the
+  // loop overwrites index.html with the home page. scripts/pages-postbuild.mjs
+  // builds 404.html from it and then deletes it.
+  fs.writeFileSync(path.join(outDir, '_shell.html'), shellHtml, 'utf8');
+
   let generated = 0;
 
   for (const [routePath, routeMeta] of Object.entries(routes)) {
