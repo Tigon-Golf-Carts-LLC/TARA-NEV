@@ -4,6 +4,7 @@
   "license": "MIT",
   "private": true,
   "description": "Static marketing site for TARA Neighborhood Electric Vehicles, deployed to GitHub Pages.",
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "dev": "pnpm --filter @workspace/tara-ev run dev",

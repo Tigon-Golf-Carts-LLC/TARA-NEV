@@ -31,6 +31,9 @@ jobs:
           # step or build script could read it. Nothing here pushes.
           persist-credentials: false
 
+      # Reads the pnpm version from the root package.json "packageManager"
+      # field. Without that field this step fails with "No pnpm version is
+      # specified" — do not remove it.
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
 
@@ -51,6 +54,10 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          # Turn Pages on (source: GitHub Actions) if it isn't already, so a
+          # fresh clone of this repo deploys without a manual settings visit.
+          enablement: true
 
       - name: Upload build output
         uses: actions/upload-pages-artifact@v3
