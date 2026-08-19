@@ -46,6 +46,51 @@ const HOME_DESCRIPTION =
   'lithium-powered neighborhood electric vehicles designed for neighborhoods, golf courses, resorts, and communities.';
 const SITE_ICON = '/images/tara-nev-logo.png';
 
+// ─── Security policy (build only) ─────────────────────────────────────────────
+//
+// GitHub Pages serves static files and sends no custom response headers, so
+// the policy has to travel in the markup. A <meta> CSP covers every directive
+// except frame-ancestors and sandbox, which are header-only — see
+// docs/SECURITY.md for what that leaves uncovered.
+//
+// Injected at build time only. In dev, a strict script-src would block Vite's
+// HMR preamble and its websocket, so `pnpm dev` runs without a policy.
+//
+// Notes on the specific relaxations:
+//   'unsafe-inline' for style — the mirrored WordPress content carries ~1,550
+//     inline style="" attributes. Scripts need no equivalent exemption: the
+//     content has no inline handlers and the bundled site JS has no eval().
+//   www.taragolfcart.com for img — two news posts still hotlink an
+//     illustration from the original site.
+//   upgrade-insecure-requests — rewrites any http:// subresource to https at
+//     fetch time, so one missed asset can never downgrade the padlock.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https://www.taragolfcart.com",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "form-action 'self'",
+  "base-uri 'self'",
+  "frame-src 'none'",
+  "object-src 'none'",
+  'upgrade-insecure-requests',
+].join('; ');
+
+const securityMeta = (): Plugin => ({
+  name: 'security-meta',
+  apply: 'build' as const,
+  transformIndexHtml(html: string) {
+    return html.replace(
+      '<meta name="robots"',
+      `<meta http-equiv="Content-Security-Policy" content="${CSP}" />\n` +
+        '    <meta name="referrer" content="strict-origin-when-cross-origin" />\n' +
+        '    <meta name="robots"',
+    );
+  },
+});
+
 const absoluteOgUrls = () => ({
   name: 'absolute-og-urls',
   apply: 'build' as const,
@@ -272,6 +317,7 @@ export default defineConfig({
   base: basePath,
   plugins: [
     redirectPlugin(),
+    securityMeta(),
     absoluteOgUrls(),
     spaMetaMiddleware(),
     prerenderPlugin(),

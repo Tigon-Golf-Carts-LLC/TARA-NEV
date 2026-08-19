@@ -27,6 +27,9 @@ jobs:
         with:
           # The repo carries ~1 GB of image history; only HEAD is needed.
           fetch-depth: 1
+          # Don't leave the job's GITHUB_TOKEN in .git/config where any later
+          # step or build script could read it. Nothing here pushes.
+          persist-credentials: false
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4

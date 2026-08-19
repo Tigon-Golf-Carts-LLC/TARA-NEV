@@ -59,6 +59,30 @@ redirects `www.taranev.com` → `taranev.com`.
 
 ---
 
+## 3b. CAA record (optional, recommended)
+
+A `CAA` record names which certificate authorities are allowed to issue
+certificates for the domain. Without one, *any* public CA may issue for
+`taranev.com`; with one, a mis-issued certificate from anywhere else is
+refused at the CA level.
+
+GitHub Pages issues through Let's Encrypt:
+
+| Type | Name | Value | TTL |
+| --- | --- | --- | --- |
+| CAA | `@` | `0 issue "letsencrypt.org"` | 3600 |
+
+Some DNS panels split this into three fields instead of one string —
+flags `0`, tag `issue`, value `letsencrypt.org`.
+
+> Add this **after** HTTPS is confirmed working, not before. And if you ever
+> move the site off GitHub Pages, or put a proxy like Cloudflare in front of
+> it, update or remove this record first — otherwise the new host's CA cannot
+> issue and renewal fails silently. If that risk isn't worth the benefit to
+> you, skipping CAA is a perfectly reasonable choice.
+
+---
+
 ## If your DNS is on Cloudflare
 
 Create the same records, but set the proxy status to **DNS only** (grey
@@ -86,9 +110,14 @@ In the repository, **Settings → Pages**:
    (this writes/checks the `CNAME` file, which the build already generates)
 3. Wait for the "DNS check successful" green tick, then tick **Enforce HTTPS**
 
-The HTTPS certificate is issued automatically by GitHub via Let's Encrypt. It
-can take anywhere from a few minutes to ~24 hours after DNS propagates; until
-it is issued the **Enforce HTTPS** checkbox stays greyed out.
+The HTTPS certificate is issued automatically by GitHub via Let's Encrypt —
+there is nothing to buy or install. It can take anywhere from a few minutes to
+~24 hours after DNS propagates; until it is issued the **Enforce HTTPS**
+checkbox stays greyed out, so check back for step 3.
+
+**Step 3 is the one that actually secures the site.** Until Enforce HTTPS is
+ticked, `http://taranev.com` is served over plaintext instead of redirecting.
+See [`SECURITY.md`](SECURITY.md) for the full picture.
 
 ---
 
