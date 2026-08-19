@@ -263,7 +263,7 @@ export default function App() {
               </div>
             </div>
             <div class="tf-bottom">
-              <span>&copy; ${new Date().getFullYear()} TARA Neighborhood Electric Vehicles. All rights reserved.</span>
+              <span>&copy; ${new Date().getFullYear()} <a href="https://tigongolfcarts.com/tara-ev" target="_blank" rel="noopener noreferrer">TARA Neighborhood Electric Vehicles</a>. All rights reserved.</span>
               <span class="tf-legal">
                 <a href="/privacy-policy/">Privacy Policy</a>
                 <a href="/terms-and-conditions/">Terms &amp; Conditions</a>
