@@ -7,6 +7,10 @@
     <meta name="description" content="lithium-powered neighborhood electric vehicles designed for neighborhoods, golf courses, resorts, and communities." />
     <meta name="image" content="https://taranev.com/images/tara-nev-logo.png" />
     <meta name="robots" content="index, follow" />
+    <!-- Content-Security-Policy and Referrer-Policy are injected into the
+         built HTML by the securityMeta() plugin in vite.config.ts. They are
+         deliberately absent here: a strict script-src would block Vite's HMR
+         preamble and dev websocket, breaking `pnpm dev`. -->
     <link rel="canonical" href="https://taranev.com/" />
     <meta property="og:title" content="TARA Neighborhood Electric Vehicles" />
     <meta property="og:description" content="lithium-powered neighborhood electric vehicles designed for neighborhoods, golf courses, resorts, and communities." />
@@ -58,7 +62,6 @@
     <link rel="icon" type="image/png" href="/images/favicon.png" />
     <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
     <link rel="stylesheet" href="/css/site.css" />
-    <link rel="stylesheet" href="/css/menu-image.css" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="search" type="application/opensearchdescription+xml" title="TARA NEV" href="/opensearch.xml" />
     <meta name="msapplication-config" content="/browserconfig.xml" />

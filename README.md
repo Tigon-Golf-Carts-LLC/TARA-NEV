@@ -32,7 +32,10 @@ One-time setup in the GitHub repo:
    **GitHub Actions**. (Not "Deploy from a branch" — this repo builds via a
    workflow.)
 2. **Settings → Pages → Custom domain:** enter `taranev.com` and save.
-3. Once DNS has propagated, tick **Enforce HTTPS** on the same page.
+3. Once DNS has propagated and the certificate is issued, tick
+   **Enforce HTTPS** on the same page. **This is the step that secures the
+   site** — until it is ticked, `http://` is served in plaintext rather than
+   redirected. See [`docs/SECURITY.md`](docs/SECURITY.md).
 
 After that, every push to `main` publishes automatically. You can also
 re-publish without a commit from **Actions → Deploy to GitHub Pages → Run
@@ -42,6 +45,12 @@ workflow**.
 
 See [`docs/DNS.md`](docs/DNS.md) for the exact records to create at your
 registrar.
+
+### Security
+
+See [`docs/SECURITY.md`](docs/SECURITY.md) for the HTTPS setup, the Content
+Security Policy, what a static host cannot enforce, and the remaining
+third-party hotlinks worth cleaning up.
 
 ### Publishing without a custom domain
 
@@ -76,7 +85,7 @@ without reimplementing each template.
   HTML file per route (correct `<title>`, description, canonical, OG/Twitter
   tags, plus the page content embedded in `#root`). This is what crawlers and
   first-paint see; React then takes over.
-- Original site CSS is `public/css/site.css` and `public/css/menu-image.css`;
+- Original site CSS is `public/css/site.css`;
   images are in `public/images/`, fonts in `public/fonts/`. All assets are
   localized — nothing loads from `cdn.globalso.com`.
 
@@ -91,10 +100,11 @@ server did at request time is now baked in at build time:
 | --- | --- |
 | Custom domain | Writes `CNAME` into the build output |
 | Jekyll | Writes `.nojekyll` so `_`-prefixed paths survive |
-| 301 redirects | Writes a real HTML redirect page (canonical + meta refresh + JS) for each `{"redirect": "..."}` entry in `routes.json` |
+| 301 redirects | Writes a real HTML redirect page (canonical + meta refresh) for each `{"redirect": "..."}` entry in `routes.json` |
 | Unknown URLs | Copies the app shell to `404.html` (marked `noindex`) so the SPA can resolve the path client-side |
 | Percent-encoded slugs | Also writes each such page at its percent-decoded path, since Pages decodes the URL before looking for a file |
 | Size limit | Prunes images no page references, then hard-fails if the output exceeds Pages' 1 GB cap |
+| Mixed content | Hard-fails the build on any `http://` subresource, which would cost the page its HTTPS padlock |
 
 **About the image prune:** the source tree carries ~870 MB of unreferenced
 image originals — mostly multi-megabyte PNGs whose `.webp` versions are what
@@ -139,6 +149,9 @@ submit-to-inbox form is wanted later, it needs a third-party form endpoint
   stripped and should stay out.
 - This is a clone/migration of the client's own site — keep content identical
   to the original unless asked.
+- The Content Security Policy is applied to **builds only**, not `pnpm dev`.
+  A third-party embed (map, video, analytics tag) will work in dev and be
+  blocked in the build until you add its origin to `CSP` in `vite.config.ts`.
 
 ---
 
@@ -147,16 +160,17 @@ submit-to-inbox form is wanted later, it needs a third-party form endpoint
 ```
 .github/workflows/deploy-pages.yml   Build + publish to GitHub Pages
 docs/DNS.md                          DNS records for the custom domain
+docs/SECURITY.md                     HTTPS setup, CSP, and known exposures
 artifacts/tara-ev/                   The site
   index.html                         App shell (base <head>, meta defaults)
-  vite.config.ts                     Build config, dev redirects, prerender hook
+  vite.config.ts                     Build config, redirects, CSP, prerender hook
   src/App.tsx                        Content loader + site-wide footer/CTA
   src/structuredData.ts              Per-route JSON-LD
   public/content/                    Page HTML + routes.json
   public/{css,js,images,fonts}/      Localized original assets
   public/{robots.txt,sitemap*.xml}   SEO files
   scripts/prerender.mjs              Static HTML per route
-  scripts/pages-postbuild.mjs        GitHub Pages packaging
+  scripts/pages-postbuild.mjs        GitHub Pages packaging + security guards
   scripts/verify-removals.sh         Guard for client-requested removals
 TARA Golf Cart Models/               Source photography (not published)
 attached_assets/                     Working assets (not published)
